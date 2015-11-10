@@ -10,14 +10,15 @@
 wd = "/home/cmchurch/Desktop/ngram-work/"
 alphabet = 'abcdefghijklmnopqrstuvwxyzùàâûüæçéèêëïîôœABCDEFGHIJKLMNOPQRSTUVWXYZÙÀÂÛÜÆÇÉÈÊËÏÎÔŒ'
 alpharegex = r"[" + re.escape(alphabet) + r"]\S+"
-init="lexique"
+#trained_data="google-n-gram.txt"
+trained_data="lexique-with-freq.tsv"
 
 # <codecell>
 
 #adapted from PETER NORVIG SPELLCHECKER (http://norvig.com/spell-correct.html)
 
 import re, collections, csv
-from IPython.display import clear_output
+from math import log
 
 def tokenize(text):
     return re.findall(alpharegex,text)
@@ -30,19 +31,7 @@ def readgrams(f):
             model[row[0]]+=float(row[1])
         return model
     
-def train(features):
-    model = collections.defaultdict(lambda: 1)
-    for f in features:
-        model[f] += 1
-    return model
-
-#NWORDS = train(tokenize(file(wd+'lexique.txt').read()))
-
-
-if (init=='1grams'):
-    NWORDS = readgrams('google-n-gram.txt')
-elif (init=='lexique'):
-    NWORDS = readgrams('lexique-with-freq.tsv')
+NWORDS = readgrams(trained_data)
 
 def edits1(word):
    splits     = [(word[:i], word[i:]) for i in range(len(word) + 1)]
@@ -63,6 +52,42 @@ def correct(word):
 
 def strip_newlines(text):
     return text.replace('\n',' ')
+
+# <codecell>
+
+#following code from http://stackoverflow.com/questions/8870261/how-to-split-text-without-spaces-into-list-of-words
+#somehow combine this with unmatched candidates to see if they could be broken into two words?
+words = NWORDS
+wordcost = dict((k, log((i+1)*log(len(words)))) for i,k in enumerate(words))
+maxword = max(len(x) for x in words)
+
+def infer_spaces(s):
+    """Uses dynamic programming to infer the location of spaces in a string
+    without spaces."""
+
+    # Find the best match for the i first characters, assuming cost has
+    # been built for the i-1 first characters.
+    # Returns a pair (match_cost, match_length).
+    def best_match(i):
+        candidates = enumerate(reversed(cost[max(0, i-maxword):i]))
+        return min((c + wordcost.get(s[i-k-1:i], 9e999), k+1) for k,c in candidates)
+
+    # Build the cost array.
+    cost = [0]
+    for i in range(1,len(s)+1):
+        c,k = best_match(i)
+        cost.append(c)
+
+    # Backtrack to recover the minimal-cost string.
+    out = []
+    i = len(s)
+    while i>0:
+        c,k = best_match(i)
+        assert c == cost[i]
+        out.append(s[i-k:i])
+        i -= k
+
+    return " ".join(reversed(out))
 
 # <codecell>
 
@@ -132,26 +157,5 @@ print newtext
 
 # <codecell>
 
-alpharegex = r"[" + re.escape(alphabet) + r"]+"
-def tokenize(text):
-    return re.findall(alpharegex,text)
-
-# <codecell>
-
-print cleaned_text
-
-# <codecell>
-
-def strip_newlines(text):
-    return text.replace(r'-\s','')
-
-# <codecell>
-
-print strip_newlines(sample_text)
-
-# <codecell>
-
-
-# <codecell>
-
+print infer_spaces('venutroubler')
 
