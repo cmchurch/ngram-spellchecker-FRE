@@ -181,23 +181,31 @@ newtext=""
 for token in tokens:
     token = token.encode('utf8')
     best_candidate = correct(token)
+    
+    if we_have_problem && token in NWORDS:
+        newtext+=problem_string
+        problem_tokens=[]
+    
     if token not in NWORDS:
+        we_have_problem=True
+    else:
+        we_have_problem=False
+    
+    if we_have_problem:
         problem_tokens.append(token)
         problem_string = "".join(problem_tokens)
         best_candidate = correct(problem_string)
         if best_candidate in NWORDS:
             newtext+=best_candidate.decode('utf8')+" "
+            we_have_problem=False
+            problem_tokens = []
         else:
             breakword = infer_spaces(problem_string)
-            if (len(breakword) > (len(token) *1.5 )):
-                problem=1
-            else:
+            if (len(breakword) < (len(token) *1.5 )):
                 best_candidate = breakword
-    elif (problem==1):
-        #print problem_tokens
-        problem_tokens = []
-        problem=0
-        newtext+=best_candidate.decode('utf8')+" "
+                newtext+=best_candidate.decode('utf8')+" "
+                we_have_problem=False
+                problem_tokens = []
     else:
         newtext+=best_candidate.decode('utf8')+" "
 print newtext
