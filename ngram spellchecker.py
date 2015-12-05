@@ -7,18 +7,19 @@
 #ASSISTANT PROFESSOR OF HISTORY
 #UNIVERSITY OF NEVADA, RENO
 
+import re, collections, csv
+from math import log
+
 wd = "/home/cmchurch/Desktop/ngram-work/"
 alphabet = 'abcdefghijklmnopqrstuvwxyzùàâûüæçéèêëïîôœABCDEFGHIJKLMNOPQRSTUVWXYZÙÀÂÛÜÆÇÉÈÊËÏÎÔŒ'
 alpharegex = r"[" + re.escape(alphabet) + r"]\S+"
-#trained_data="google-n-gram.txt"
-trained_data="lexique-with-freq.tsv"
+trained_data="google-n-gram.txt"
+#trained_data="lexique-with-freq.tsv"
 
 # <codecell>
 
 #adapted from PETER NORVIG SPELLCHECKER (http://norvig.com/spell-correct.html)
 
-import re, collections, csv
-from math import log
 
 def tokenize(text):
     return re.findall(alpharegex,text)
@@ -28,6 +29,7 @@ def readgrams(f):
         tsvin = csv.reader (tsvin, delimiter="\t")
         model = collections.defaultdict(lambda: 1)
         for row in tsvin:
+            #print row[0],row[1]
             model[row[0]]+=float(row[1])
         return model
     
@@ -57,14 +59,18 @@ def strip_newlines(text):
 
 #following code from http://stackoverflow.com/questions/8870261/how-to-split-text-without-spaces-into-list-of-words
 #somehow combine this with unmatched candidates to see if they could be broken into two words?
-words = NWORDS
+
+#words = NWORDS #use the same trained data as above
+data="lexique-with-freq.tsv" #changed it to use lexique data for splitter and ngrams data for spell corrector
+words = readgrams(data)
+
 wordcost = dict((k, log((i+1)*log(len(words)))) for i,k in enumerate(words))
 maxword = max(len(x) for x in words)
 
 def infer_spaces(s):
     """Uses dynamic programming to infer the location of spaces in a string
     without spaces."""
-
+    s=s.decode('utf8')
     # Find the best match for the i first characters, assuming cost has
     # been built for the i-1 first characters.
     # Returns a pair (match_cost, match_length).
@@ -143,19 +149,73 @@ ou luueurs. * t “I"""
 
 # <codecell>
 
-cleaned_text = re.sub(u'[^a-zA-Z0-9áéíóúÁÉÍÓÚâêîôÂÊÎÔãõÃÕÏçÇ:\- ]', ' ', sample_text.lower().decode('utf8'))
-cleaned_text = cleaned_text.replace(r'-\s','')
+cleaned_text = re.sub(u'[^a-zA-Z0-9áéíóúÁÉÍÓÚàèìòùÀÈÌÒÙâêîôÂÊÎÔãõÃÕÏçÇ:\-\' ]', ' ', sample_text.lower().decode('utf8'))
+#cleaned_text = cleaned_text.replace(r'-\s','')
 tokens = tokenize(cleaned_text)
+print tokens
 
 # <codecell>
 
 newtext=""
 
 for token in tokens:
-    newtext+=correct(token.encode('utf-8'))+ " "
+    token=token.encode('utf8')
+    best_candidate = correct(token)
+    #print token + ", "+ best_candidate.decode('utf8')
+    if (token==best_candidate):
+        breakword=infer_spaces(best_candidate)
+        if (len(breakword.split(' ')) < 4):
+            best_candidate=breakword.encode('utf8')
+    newtext+=best_candidate.decode('utf8')+" "
 print newtext
 
 # <codecell>
 
-print infer_spaces('venutroubler')
+#string together problem tokens and see if there is a different way to slice the pie
+#currently not working, lost track of the logical flow
+
+problem_tokens = []
+problem=0
+newtext=""
+
+for token in tokens:
+    token = token.encode('utf8')
+    best_candidate = correct(token)
+    if token not in NWORDS:
+        problem_tokens.append(token)
+        problem_string = "".join(problem_tokens)
+        best_candidate = correct(problem_string)
+        if best_candidate in NWORDS:
+            newtext+=best_candidate.decode('utf8')+" "
+        else:
+            breakword = infer_spaces(problem_string)
+            if (len(breakword) > (len(token) *1.5 )):
+                problem=1
+            else:
+                best_candidate = breakword
+    elif (problem==1):
+        #print problem_tokens
+        problem_tokens = []
+        problem=0
+        newtext+=best_candidate.decode('utf8')+" "
+    else:
+        newtext+=best_candidate.decode('utf8')+" "
+print newtext
+
+# <codecell>
+
+if "leadasdasd" in NWORDS:
+    print 'yes'
+
+# <codecell>
+
+print breakword
+
+# <codecell>
+
+problem_tokens = ["a","b","c"]
+print 
+
+# <codecell>
+
 
